@@ -25,22 +25,23 @@ export default function AlumnoPanel({ user, alumnoCtx, setAlumnoCtx }) {
   const [err, setErr] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  // redirige a /rutinas si entran a /alumno/:id sin subruta
   useEffect(() => {
     const base = `/alumno/${alumnoId}`;
     if (loc.pathname === base) nav(`${base}/rutinas`, { replace: true });
   }, [alumnoId, loc.pathname, nav]);
 
-  // asegura contexto del alumno (coach busca por id; alumno usa su propio contexto)
   useEffect(() => {
     let cancel = false;
+
     async function ensureAlumnoCtx() {
       setErr("");
+
       if (alumnoCtx && String(alumnoCtx.id) === alumnoId) return;
 
       if (user?.role === "alumno") {
-        if (!cancel)
+        if (!cancel) {
           setAlumnoCtx({ id: user.id, name: user.name, email: user.email });
+        }
         return;
       }
 
@@ -57,7 +58,9 @@ export default function AlumnoPanel({ user, alumnoCtx, setAlumnoCtx }) {
         if (!cancel) setLoading(false);
       }
     }
+
     ensureAlumnoCtx();
+
     return () => {
       cancel = true;
     };
@@ -70,6 +73,7 @@ export default function AlumnoPanel({ user, alumnoCtx, setAlumnoCtx }) {
         {err}
       </div>
     );
+
   if (!alumnoCtx || String(alumnoCtx.id) !== alumnoId)
     return <div className="card">Cargando alumno…</div>;
 
@@ -82,21 +86,21 @@ export default function AlumnoPanel({ user, alumnoCtx, setAlumnoCtx }) {
     </NavLink>
   );
 
-  // Eliminar alumno + cascada de datos
   const handleDeleteAlumno = async () => {
-    if (user?.role !== "coach") return; // seguridad: sólo coach
+    if (user?.role !== "coach") return;
+
     if (
       !confirm(
-        "¿Eliminar este alumno y todos sus datos (rutinas, planes, pagos, progreso y mensajes)?"
+        "¿Eliminar este alumno y todos sus datos (rutinas, planes, pagos, progreso y mensajes)?",
       )
-    )
+    ) {
       return;
+    }
 
     try {
       setDeleting(true);
       const aid = String(alumnoCtx.id);
 
-      // Borrado en cascada (si alguna colección no existe o falla, seguimos intentando)
       try {
         const [rs, ps, pgs, prgs, ms] = await Promise.all([
           api.rutinas?.listByAlumno
@@ -116,7 +120,6 @@ export default function AlumnoPanel({ user, alumnoCtx, setAlumnoCtx }) {
             : Promise.resolve([]),
         ]);
 
-        // eliminar en paralelo por colección
         await Promise.all([
           ...(rs || []).map((r) => api.rutinas.remove(r.id)),
           ...(ps || []).map((p) => api.planes.remove(p.id)),
@@ -125,21 +128,11 @@ export default function AlumnoPanel({ user, alumnoCtx, setAlumnoCtx }) {
           ...(ms || []).map((m) => api.mensajes.remove(m.id)),
         ]);
       } catch (e) {
-        // logueamos pero seguimos para no dejar al usuario atrapado
         console.error("Error borrando datos asociados:", e);
       }
 
-      // eliminar el alumno
       if (api.alumnos?.remove) {
         await api.alumnos.remove(aid);
-      } else {
-        // fallback por si no tenés alumnos.remove en api.js:
-        await fetch(
-          `${
-            import.meta.env.VITE_API_BASE ?? "http://localhost:4100"
-          }/alumnos/${aid}`,
-          { method: "DELETE" }
-        );
       }
 
       alert("Alumno eliminado correctamente.");
@@ -148,7 +141,7 @@ export default function AlumnoPanel({ user, alumnoCtx, setAlumnoCtx }) {
     } catch (e) {
       console.error(e);
       alert(
-        "No se pudo eliminar el alumno. Revisá la consola para más detalles."
+        "No se pudo eliminar el alumno. Revisá la consola para más detalles.",
       );
     } finally {
       setDeleting(false);
@@ -156,22 +149,21 @@ export default function AlumnoPanel({ user, alumnoCtx, setAlumnoCtx }) {
   };
 
   return (
-    <div className="grid" style={{ gap: 16 }}>
+    <div className="grid" style={{ gap: 18 }}>
       <div
         className="card"
         style={{
           display: "flex",
-          gap: 6,
+          gap: 12,
           justifyContent: "space-between",
           alignItems: "center",
         }}
       >
         <div>
-          <div style={{ fontWeight: 600 }}>{alumnoCtx.name}</div>
-          <div style={{ opacity: 0.8, fontSize: 14 }}>{alumnoCtx.email}</div>
+          <div className="student-name">{alumnoCtx.name}</div>
+          <div className="student-email">{alumnoCtx.email}</div>
         </div>
 
-        {/* Botón eliminar visible sólo para coach */}
         {user?.role === "coach" && (
           <ConfirmDeleteButton
             label={deleting ? "Eliminando..." : "Eliminar alumno"}
@@ -182,7 +174,7 @@ export default function AlumnoPanel({ user, alumnoCtx, setAlumnoCtx }) {
         )}
       </div>
 
-      <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+      <div className="tabs-row">
         <TabLink to={`/alumno/${alumnoId}/rutinas`}>Rutinas</TabLink>
         <TabLink to={`/alumno/${alumnoId}/planes`}>Nutrición</TabLink>
         <TabLink to={`/alumno/${alumnoId}/pagos`}>Pagos</TabLink>

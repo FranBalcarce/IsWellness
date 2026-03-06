@@ -22,16 +22,17 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div
-      className="card"
-      style={{
-        maxWidth: 520,
-        width: "100%",
-        padding: 32,
-      }}
-    >
-      <h2 className="title">Ingresar</h2>
-      <form onSubmit={doLogin} className="grid" style={{ gap: 12 }}>
+    <div className="login-card">
+      <div className="login-brand">
+        <small>BIENVENIDO</small>
+        <h2>Entrá a IsWellness</h2>
+        <p>
+          Gestioná alumnos, rutinas, pagos, progreso y seguimiento desde un solo
+          lugar.
+        </p>
+      </div>
+
+      <form onSubmit={doLogin} className="grid" style={{ gap: 14 }}>
         <div>
           <label>Email</label>
           <input
@@ -40,8 +41,10 @@ export default function Login({ onLogin }) {
             onChange={(e) => setEmail(e.target.value)}
             required
             autoFocus
+            placeholder="tuemail@gmail.com"
           />
         </div>
+
         <div>
           <label>Contraseña</label>
           <input
@@ -49,9 +52,12 @@ export default function Login({ onLogin }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            placeholder="Ingresá tu contraseña"
           />
         </div>
-        {err && <div style={{ color: "#b00020" }}>{err}</div>}
+
+        {err && <div className="login-error">{err}</div>}
+
         <button className="btn primary" disabled={loading}>
           {loading ? "Ingresando..." : "Ingresar"}
         </button>

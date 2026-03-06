@@ -1,9 +1,16 @@
 import { NavLink } from "react-router-dom";
 
-export default function Sidebar({ user, alumnoCtx, onLogout }) {
+export default function Sidebar({ alumnoCtx }) {
   return (
     <aside className="sidebar">
-      <div className="brand">FitPro (demo)</div>
+      <div className="brand">
+        <span className="brand-badge">FITNESS CRM</span>
+        <div className="brand-title">IsWellness</div>
+        <div className="brand-subtitle">
+          Panel de entrenamiento y seguimiento
+        </div>
+      </div>
+
       <div className="nav">
         <NavLink
           to="/dashboard"
@@ -11,6 +18,7 @@ export default function Sidebar({ user, alumnoCtx, onLogout }) {
         >
           Dashboard
         </NavLink>
+
         {alumnoCtx && (
           <>
             <NavLink

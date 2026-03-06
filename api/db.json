@@ -8,137 +8,77 @@
       "role": "coach"
     }
   ],
-  "alumnos": [
-    {
-      "id": "196f",
-      "name": "Francisco",
-      "email": "franbalcarce8@gmail.com",
-      "password": "tvC8uqvpej",
-      "role": "alumno",
-      "coachId": 1,
-      "createdAt": 1763231676607
-    }
-  ],
+  "alumnos": [],
   "rutinas": [
     {
-      "id": "8124",
-      "nombre": "Dia 1",
+      "id": "84ee",
+      "nombre": "Lunes",
       "ejercicios": [
         {
-          "nombre": "Press plano",
-          "video": "https://www.youtube.com/watch?v=TAH8RxOS0VI",
+          "nombre": "Pecho plano",
+          "video": "",
           "series": [
             {
               "reps": 12,
-              "done": true
+              "done": false
             },
             {
               "reps": 10,
-              "done": true
+              "done": false
             },
             {
               "reps": 8,
-              "done": true
-            },
-            {
-              "reps": 8,
-              "done": true
-            },
-            {
-              "reps": 6,
-              "done": true
-            }
-          ]
-        },
-        {
-          "nombre": "Aperturas",
-          "video": "https://www.youtube.com/watch?v=OrlXQdNwNwM",
-          "series": [
-            {
-              "reps": 12,
-              "done": false
-            },
-            {
-              "reps": 12,
-              "done": false
-            },
-            {
-              "reps": 12,
-              "done": false
-            },
-            {
-              "reps": 12,
               "done": false
             }
           ]
         }
       ],
-      "alumnoId": "196f",
-      "createdAt": 1763231737289,
-      "updatedAt": 1763231903491
+      "alumnoId": "gn0fMIh4CLQljOnV6rx4Z4BP1dV2",
+      "createdAt": 1772808599456,
+      "updatedAt": 1772808599456
     }
   ],
   "planes": [
     {
-      "id": "0db8",
-      "alumnoId": "196f",
+      "id": "0f51",
+      "alumnoId": "gn0fMIh4CLQljOnV6rx4Z4BP1dV2",
       "nombre": "Lunes",
       "items": [
-        "Desayuno:",
+        "Desayuno",
         "Almuerzo",
         "Merienda",
         "Cena"
       ],
-      "createdAt": 1763231763961,
-      "updatedAt": 1763231763961
+      "createdAt": 1772808629688,
+      "updatedAt": 1772808629688
     }
   ],
-  "pagos": [
-    {
-      "id": "5a9e",
-      "alumnoId": "196f",
-      "monto": 40,
-      "fecha": "2025-11-30",
-      "estado": "pagado",
-      "nota": "",
-      "createdAt": 1763231780608,
-      "updatedAt": 1763231921600
-    }
-  ],
+  "pagos": [],
   "progresos": [
     {
-      "id": "fef9",
-      "alumnoId": "196f",
-      "fecha": "2025-10-15",
-      "peso": 95,
+      "id": "fc19",
+      "alumnoId": "gn0fMIh4CLQljOnV6rx4Z4BP1dV2",
+      "fecha": "2220-02-01",
+      "peso": 131,
       "medidas": {},
-      "createdAt": 1763231802792,
-      "updatedAt": 1763231802792
-    },
-    {
-      "id": "9123",
-      "alumnoId": "196f",
-      "fecha": "2025-11-15",
-      "peso": 90,
-      "medidas": {},
-      "createdAt": 1763231816617,
-      "updatedAt": 1763231816617
+      "createdAt": 1772808642952,
+      "updatedAt": 1772808642952
     }
   ],
   "mensajes": [
     {
-      "id": "6428",
-      "alumnoId": "196f",
-      "from": "Entrenador Demo",
-      "text": "Hola Francisco, tu rutina y tu plan nutricional ya estan cargados.",
-      "createdAt": 1763231841112
+      "id": "8dcd",
+      "alumnoId": "gn0fMIh4CLQljOnV6rx4Z4BP1dV2",
+      "from": "Francisco",
+      "text": "Hola mora, te dejo la rutina",
+      "createdAt": 1772808651488
     },
     {
-      "id": "c989",
-      "alumnoId": "196f",
+      "id": "197d",
+      "alumnoId": "gn0fMIh4CLQljOnV6rx4Z4BP1dV2",
       "from": "Francisco",
-      "text": "Hola profe, muchas gracias!",
-      "createdAt": 1763231941920
+      "text": "Hola frna, gracias",
+      "createdAt": 1772808707664
     }
   ]
 }

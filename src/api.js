@@ -1,3 +1,7 @@
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "./firebase";
+import { collection, getDocs, query, where } from "firebase/firestore";
 // src/api.js
 const BASE = import.meta.env?.VITE_API_BASE ?? "http://localhost:4100";
 
@@ -6,60 +10,103 @@ function ok(r) {
   return r.json();
 }
 
-function genPassword(len = 8) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
-  let out = "";
-  for (let i = 0; i < len; i++)
-    out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
-}
-
 export const api = {
   // --- AUTENTICACIÓN ---
   auth: {
     async login(email, password) {
-      // Buscar en coaches
-      const rc = await fetch(
-        `${BASE}/coaches?email=${encodeURIComponent(email)}`
-      );
-      const coaches = await ok(rc);
-      if (coaches.length) {
-        const c = coaches[0];
-        if (c.password === password)
-          return { id: c.id, name: c.name, email: c.email, role: "coach" };
-        throw new Error("Contraseña incorrecta");
+      const cleanEmail = String(email || "")
+        .trim()
+        .toLowerCase();
+
+      const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      const uid = cred.user.uid;
+
+      const ref = doc(db, "users", uid);
+      const snap = await getDoc(ref);
+
+      if (!snap.exists()) {
+        throw new Error(
+          `Usuario autenticado pero sin perfil en Firestore: users/${uid}`,
+        );
       }
 
-      // Buscar en alumnos
-      const ra = await fetch(
-        `${BASE}/alumnos?email=${encodeURIComponent(email)}`
-      );
-      const alumnos = await ok(ra);
-      if (alumnos.length) {
-        const a = alumnos[0];
-        if (a.password === password)
-          return { id: a.id, name: a.name, email: a.email, role: "alumno" };
-        throw new Error("Contraseña incorrecta");
+      const u = snap.data() || {};
+
+      // ✅ Normalizar role para que no falle por mayúsculas/espacios
+      const role = String(u.role || "")
+        .trim()
+        .toLowerCase();
+
+      // ✅ Debug opcional (si querés ver qué viene realmente)
+      // console.log("[AUTH] Firestore user:", { uid, ...u });
+
+      if (!role) {
+        throw new Error(
+          `El perfil users/${uid} existe pero NO tiene 'role'. Agregá role: "coach" o "alumno".`,
+        );
       }
-      throw new Error("Usuario no encontrado");
+      if (role !== "coach" && role !== "alumno") {
+        throw new Error(
+          `Role inválido en users/${uid}: "${u.role}". Usá "coach" o "alumno".`,
+        );
+      }
+
+      return {
+        id: uid,
+        uid,
+        name: u.name || cred.user.displayName || "",
+        email: u.email || cred.user.email || cleanEmail,
+        role,
+      };
+    },
+
+    async logout() {
+      await signOut(auth);
     },
   },
 
   // --- ALUMNOS ---
-  // src/api.js (solo reemplazar alumnos.create)
   alumnos: {
-    async list() {
-      const r = await fetch(`${BASE}/alumnos?_sort=id&_order=desc`);
-      return ok(r);
+    async list(coachId) {
+      const q = query(
+        collection(db, "users"),
+        where("role", "==", "alumno"),
+        where("coachId", "==", String(coachId)),
+      );
+
+      const snap = await getDocs(q);
+
+      return snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          uid: d.id,
+          name: data.name || "",
+          email: data.email || "",
+          role: data.role || "alumno",
+          coachId: data.coachId || "",
+        };
+      });
     },
+
     async get(id) {
-      const r = await fetch(`${BASE}/alumnos/${id}`);
-      if (r.status === 404) return null;
-      return ok(r);
+      const snap = await getDoc(doc(db, "users", String(id)));
+      if (!snap.exists()) return null;
+
+      const data = snap.data();
+      return {
+        id: snap.id,
+        uid: snap.id,
+        name: data.name || "",
+        email: data.email || "",
+        role: data.role || "alumno",
+        coachId: data.coachId || "",
+      };
     },
-    async create({ name, email, coachId = 1 }) {
-      // ahora lo hace el micro-server
+
+    async create({ name, email, coachId }) {
       const SRV = import.meta.env?.VITE_SERVER_BASE ?? "http://localhost:4500";
+
       const r = await fetch(`${SRV}/invite-alumno`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -71,27 +118,21 @@ export const api = {
         e.code = "EMAIL_EXISTS";
         throw e;
       }
+
       if (!r.ok) {
         const t = await r.text();
         throw new Error("No se pudo crear/enviar email: " + t);
       }
-      // el server ya creó el alumno y envió el mail
-      const created = await r.json();
-      // opcional: si querés seguir mostrando algo, podrías agregar tempPassword
-      return created;
+
+      return r.json();
     },
+
     async update(id, patch) {
-      const r = await fetch(`${BASE}/alumnos/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...patch, updatedAt: Date.now() }),
-      });
-      return ok(r);
+      throw new Error("Update de alumnos aún no migrado a Firestore");
     },
+
     async remove(id) {
-      const r = await fetch(`${BASE}/alumnos/${id}`, { method: "DELETE" });
-      if (!r.ok) throw new Error("No se pudo eliminar el alumno");
-      return true;
+      throw new Error("Delete de alumnos aún no migrado a Firestore");
     },
   },
 
@@ -140,8 +181,8 @@ export const api = {
     async listByAlumno(alumnoId) {
       const r = await fetch(
         `${BASE}/planes?alumnoId=${encodeURIComponent(
-          String(alumnoId)
-        )}&_sort=updatedAt&_order=desc`
+          String(alumnoId),
+        )}&_sort=updatedAt&_order=desc`,
       );
       return ok(r);
     },
@@ -184,8 +225,8 @@ export const api = {
     async listByAlumno(alumnoId) {
       const r = await fetch(
         `${BASE}/pagos?alumnoId=${encodeURIComponent(
-          String(alumnoId)
-        )}&_sort=fecha&_order=desc`
+          String(alumnoId),
+        )}&_sort=fecha&_order=desc`,
       );
       return ok(r);
     },
@@ -232,8 +273,8 @@ export const api = {
     async listByAlumno(alumnoId) {
       const r = await fetch(
         `${BASE}/progresos?alumnoId=${encodeURIComponent(
-          String(alumnoId)
-        )}&_sort=fecha&_order=desc`
+          String(alumnoId),
+        )}&_sort=fecha&_order=desc`,
       );
       return ok(r);
     },
@@ -273,8 +314,8 @@ export const api = {
     async listByAlumno(alumnoId) {
       const r = await fetch(
         `${BASE}/mensajes?alumnoId=${encodeURIComponent(
-          String(alumnoId)
-        )}&_sort=createdAt&_order=desc`
+          String(alumnoId),
+        )}&_sort=createdAt&_order=desc`,
       );
       return ok(r);
     },
