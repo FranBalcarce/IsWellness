@@ -10,7 +10,31 @@ import { fileURLToPath } from "url";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+const allowedOrigins = [
+  "https://is-wellness.vercel.app",
+  "http://localhost:5173",
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Permite requests sin origin (Postman, healthchecks, server-to-server)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Origen no permitido por CORS: ${origin}`));
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: false,
+  }),
+);
+
+app.options("*", cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 4500;
@@ -45,13 +69,68 @@ function initFirebaseAdmin() {
   }
 
   admin.initializeApp({
-    credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+    credential: admin.credential.cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    }),
   });
 }
 
 initFirebaseAdmin();
 
 const db = admin.firestore();
+
+// ===== Helpers =====
+function sanitizeRutinaPayload(body = {}) {
+  const nombre =
+    String(
+      body.nombre ||
+        body.nombreRutina ||
+        body.title ||
+        body.name ||
+        "",
+    ).trim();
+
+  const alumnoId = String(
+    body.alumnoId || body.studentId || body.userId || "",
+  ).trim();
+
+  const coachId = String(body.coachId || body.entrenadorId || "coach-1").trim();
+
+  const ejercicios = Array.isArray(body.ejercicios)
+    ? body.ejercicios
+        .map((ej, index) => {
+          const nombreEjercicio = String(
+            ej?.nombre ||
+              ej?.name ||
+              ej?.ejercicio ||
+              "",
+          ).trim();
+
+          const series = Array.isArray(ej?.series)
+            ? ej.series.map((serie) => ({
+                reps: Number(serie?.reps ?? serie?.repeticiones ?? 0),
+                done: Boolean(serie?.done ?? false),
+              }))
+            : [];
+
+          return {
+            id: ej?.id || `ej-${index + 1}`,
+            nombre: nombreEjercicio,
+            series,
+          };
+        })
+        .filter((ej) => ej.nombre)
+    : [];
+
+  return {
+    nombre,
+    alumnoId,
+    coachId,
+    ejercicios,
+  };
+}
 
 // ===== Healthcheck =====
 app.get("/", (_req, res) => {
@@ -78,15 +157,13 @@ app.post("/invite-alumno", async (req, res) => {
     const cleanName = String(name).trim();
     const cleanCoachId = String(coachId || "").trim() || "coach-1";
 
-    // Si ya existe en Auth => 409
     try {
       await admin.auth().getUserByEmail(cleanEmail);
       return res.status(409).json({ error: "EMAIL_EXISTS" });
-    } catch (e) {
-      // si no existe, seguimos
+    } catch (_e) {
+      // Si no existe, seguimos
     }
 
-    // Crear usuario en Firebase Auth sin contraseña
     const userRecord = await admin.auth().createUser({
       email: cleanEmail,
       displayName: cleanName,
@@ -96,7 +173,6 @@ app.post("/invite-alumno", async (req, res) => {
 
     const uid = userRecord.uid;
 
-    // Guardar perfil en Firestore
     await db.doc(`users/${uid}`).set(
       {
         uid,
@@ -109,7 +185,6 @@ app.post("/invite-alumno", async (req, res) => {
       { merge: true },
     );
 
-    // Guardar referencia bajo el coach
     await db.doc(`coaches/${cleanCoachId}/students/${uid}`).set(
       {
         uid,
@@ -120,7 +195,6 @@ app.post("/invite-alumno", async (req, res) => {
       { merge: true },
     );
 
-    // Generar link para crear/restablecer contraseña
     const resetLink = await admin.auth().generatePasswordResetLink(cleanEmail, {
       url: APP_LOGIN_URL,
       handleCodeInApp: false,
@@ -128,19 +202,19 @@ app.post("/invite-alumno", async (req, res) => {
 
     console.log("RESET LINK DEL ALUMNO:", cleanEmail, resetLink);
 
-    res.json({
+    return res.json({
       id: uid,
       uid,
       name: cleanName,
       email: cleanEmail,
       role: "alumno",
       coachId: cleanCoachId,
-      resetLink, // útil para pruebas; después lo podés sacar en producción
+      resetLink,
     });
   } catch (e) {
     console.error("[INVITE] server error:", e);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "SERVER_ERROR",
       detail: String(e?.message || e),
     });
@@ -148,7 +222,7 @@ app.post("/invite-alumno", async (req, res) => {
 });
 
 // ======================================================
-// REENVIAR / GENERAR LINK DE CONTRASEÑA PARA ALUMNO EXISTENTE
+// REENVIAR / GENERAR LINK DE CONTRASEÑA
 // ======================================================
 app.post("/reset-link", async (req, res) => {
   try {
@@ -167,7 +241,7 @@ app.post("/reset-link", async (req, res) => {
 
     console.log("RESET LINK EXISTENTE:", cleanEmail, resetLink);
 
-    res.json({
+    return res.json({
       ok: true,
       email: cleanEmail,
       resetLink,
@@ -175,8 +249,217 @@ app.post("/reset-link", async (req, res) => {
   } catch (e) {
     console.error("[RESET LINK ERROR]", e);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "RESET_LINK_FAILED",
+      detail: String(e?.message || e),
+    });
+  }
+});
+
+// ======================================================
+// CREAR RUTINA
+// ======================================================
+app.post("/rutinas", async (req, res) => {
+  try {
+    const { nombre, alumnoId, coachId, ejercicios } = sanitizeRutinaPayload(
+      req.body,
+    );
+
+    if (!nombre) {
+      return res.status(400).json({ error: "Falta el nombre de la rutina" });
+    }
+
+    if (!alumnoId) {
+      return res.status(400).json({ error: "Falta alumnoId" });
+    }
+
+    const rutinaRef = db.collection("rutinas").doc();
+
+    const rutina = {
+      id: rutinaRef.id,
+      nombre,
+      alumnoId,
+      coachId,
+      ejercicios,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await rutinaRef.set(rutina);
+
+    return res.status(201).json({
+      ok: true,
+      rutina: {
+        id: rutina.id,
+        nombre: rutina.nombre,
+        alumnoId: rutina.alumnoId,
+        coachId: rutina.coachId,
+        ejercicios: rutina.ejercicios,
+      },
+    });
+  } catch (e) {
+    console.error("[RUTINAS][CREATE] error:", e);
+
+    return res.status(500).json({
+      error: "RUTINA_CREATE_FAILED",
+      detail: String(e?.message || e),
+    });
+  }
+});
+
+// ======================================================
+// LISTAR RUTINAS POR ALUMNO
+// ======================================================
+app.get("/rutinas/:alumnoId", async (req, res) => {
+  try {
+    const alumnoId = String(req.params.alumnoId || "").trim();
+
+    if (!alumnoId) {
+      return res.status(400).json({ error: "Falta alumnoId" });
+    }
+
+    const snapshot = await db
+      .collection("rutinas")
+      .where("alumnoId", "==", alumnoId)
+      .get();
+
+    const rutinas = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+      };
+    });
+
+    return res.json({
+      ok: true,
+      rutinas,
+    });
+  } catch (e) {
+    console.error("[RUTINAS][LIST] error:", e);
+
+    return res.status(500).json({
+      error: "RUTINAS_LIST_FAILED",
+      detail: String(e?.message || e),
+    });
+  }
+});
+
+// ======================================================
+// OBTENER UNA RUTINA
+// ======================================================
+app.get("/rutinas/item/:rutinaId", async (req, res) => {
+  try {
+    const rutinaId = String(req.params.rutinaId || "").trim();
+
+    if (!rutinaId) {
+      return res.status(400).json({ error: "Falta rutinaId" });
+    }
+
+    const doc = await db.collection("rutinas").doc(rutinaId).get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: "RUTINA_NOT_FOUND" });
+    }
+
+    return res.json({
+      ok: true,
+      rutina: {
+        id: doc.id,
+        ...doc.data(),
+      },
+    });
+  } catch (e) {
+    console.error("[RUTINAS][GET] error:", e);
+
+    return res.status(500).json({
+      error: "RUTINA_GET_FAILED",
+      detail: String(e?.message || e),
+    });
+  }
+});
+
+// ======================================================
+// EDITAR RUTINA
+// ======================================================
+app.put("/rutinas/:rutinaId", async (req, res) => {
+  try {
+    const rutinaId = String(req.params.rutinaId || "").trim();
+
+    if (!rutinaId) {
+      return res.status(400).json({ error: "Falta rutinaId" });
+    }
+
+    const { nombre, alumnoId, coachId, ejercicios } = sanitizeRutinaPayload(
+      req.body,
+    );
+
+    const docRef = db.collection("rutinas").doc(rutinaId);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: "RUTINA_NOT_FOUND" });
+    }
+
+    const updateData = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (nombre) updateData.nombre = nombre;
+    if (alumnoId) updateData.alumnoId = alumnoId;
+    if (coachId) updateData.coachId = coachId;
+    if (Array.isArray(ejercicios)) updateData.ejercicios = ejercicios;
+
+    await docRef.set(updateData, { merge: true });
+
+    const updated = await docRef.get();
+
+    return res.json({
+      ok: true,
+      rutina: {
+        id: updated.id,
+        ...updated.data(),
+      },
+    });
+  } catch (e) {
+    console.error("[RUTINAS][UPDATE] error:", e);
+
+    return res.status(500).json({
+      error: "RUTINA_UPDATE_FAILED",
+      detail: String(e?.message || e),
+    });
+  }
+});
+
+// ======================================================
+// ELIMINAR RUTINA
+// ======================================================
+app.delete("/rutinas/:rutinaId", async (req, res) => {
+  try {
+    const rutinaId = String(req.params.rutinaId || "").trim();
+
+    if (!rutinaId) {
+      return res.status(400).json({ error: "Falta rutinaId" });
+    }
+
+    const docRef = db.collection("rutinas").doc(rutinaId);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: "RUTINA_NOT_FOUND" });
+    }
+
+    await docRef.delete();
+
+    return res.json({
+      ok: true,
+      deletedId: rutinaId,
+    });
+  } catch (e) {
+    console.error("[RUTINAS][DELETE] error:", e);
+
+    return res.status(500).json({
+      error: "RUTINA_DELETE_FAILED",
       detail: String(e?.message || e),
     });
   }
