@@ -1,28 +1,53 @@
-# Logs
-logs
-*.log
+# -----------------------------
+# Node
+# -----------------------------
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# -----------------------------
+# Frontend (Vite)
+# -----------------------------
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# -----------------------------
+# Backend
+# -----------------------------
+backend/node_modules/
+backend/.env
+backend/.env.local
+
+# 🔐 Firebase Admin (MUY IMPORTANTE)
+backend/serviceAccountKey.json
+
+# -----------------------------
+# OS / Sistema
+# -----------------------------
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
 
-server/serviceAccountKey.json
-.env
-server/.env
+# -----------------------------
+# Logs
+# -----------------------------
+logs
+*.log
+
+# -----------------------------
+# Editor / IDE
+# -----------------------------
+.vscode/
+.idea/
+*.swp
+
+# -----------------------------
+# Build / Cache
+# -----------------------------
+dist/
+.cache/
+.tmp/

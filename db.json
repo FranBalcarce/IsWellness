@@ -16,7 +16,7 @@
       "ejercicios": [
         {
           "nombre": "Pecho plano",
-          "video": "",
+          "video": "https://www.youtube.com/watch?v=TAH8RxOS0VI&pp=ygULcHJlc3MgYmFuY2E%3D",
           "series": [
             {
               "reps": 12,
@@ -29,13 +29,39 @@
             {
               "reps": 8,
               "done": false
+            },
+            {
+              "reps": 6,
+              "done": false
+            }
+          ]
+        },
+        {
+          "nombre": "Press banco inclinado",
+          "video": "https://www.youtube.com/watch?v=MkMf308jXww&pp=ygUVcHJlc3MgYmFuY28gaW5jbGluYWRv",
+          "series": [
+            {
+              "reps": 12,
+              "done": false
+            },
+            {
+              "reps": 12,
+              "done": false
+            },
+            {
+              "reps": 10,
+              "done": false
+            },
+            {
+              "reps": 10,
+              "done": false
             }
           ]
         }
       ],
       "alumnoId": "gn0fMIh4CLQljOnV6rx4Z4BP1dV2",
       "createdAt": 1772808599456,
-      "updatedAt": 1772808599456
+      "updatedAt": 1775930080001
     }
   ],
   "planes": [
