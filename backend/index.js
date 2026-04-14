@@ -680,39 +680,56 @@ app.get("/pagos/:alumnoId", async (req, res) => {
 app.put("/pagos/:id", async (req, res) => {
   try {
     const id = String(req.params.id || "").trim();
-    const pago = sanitizePagoPayload(req.body);
+    const patch = req.body || {};
 
-    await db
-      .collection("pagos")
-      .doc(id)
-      .set(
-        {
-          ...pago,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true },
-      );
+    const ref = db.collection("pagos").doc(id);
+    const snap = await ref.get();
 
-    const updated = await db.collection("pagos").doc(id).get();
-    return res.json({ ok: true, pago: { id: updated.id, ...updated.data() } });
+    if (!snap.exists) {
+      return res.status(404).json({ error: "PAGO_NOT_FOUND" });
+    }
+
+    const updateData = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (patch.alumnoId !== undefined) {
+      updateData.alumnoId = String(patch.alumnoId).trim();
+    }
+
+    if (patch.monto !== undefined) {
+      updateData.monto = Number(patch.monto || 0);
+    }
+
+    if (patch.fecha !== undefined) {
+      updateData.fecha = String(patch.fecha || "").trim();
+    }
+
+    if (patch.estado !== undefined) {
+      updateData.estado = String(patch.estado || "").trim();
+    }
+
+    if (patch.nota !== undefined) {
+      updateData.nota = String(patch.nota || "").trim();
+    }
+
+    await ref.set(updateData, { merge: true });
+
+    const updated = await ref.get();
+
+    return res.json({
+      ok: true,
+      pago: {
+        id: updated.id,
+        ...updated.data(),
+      },
+    });
   } catch (e) {
     console.error("[PAGOS][UPDATE]", e);
-    return res
-      .status(500)
-      .json({ error: "PAGO_UPDATE_FAILED", detail: String(e?.message || e) });
-  }
-});
-
-app.delete("/pagos/:id", async (req, res) => {
-  try {
-    const id = String(req.params.id || "").trim();
-    await db.collection("pagos").doc(id).delete();
-    return res.json({ ok: true });
-  } catch (e) {
-    console.error("[PAGOS][DELETE]", e);
-    return res
-      .status(500)
-      .json({ error: "PAGO_DELETE_FAILED", detail: String(e?.message || e) });
+    return res.status(500).json({
+      error: "PAGO_UPDATE_FAILED",
+      detail: String(e?.message || e),
+    });
   }
 });
 
@@ -735,12 +752,10 @@ app.post("/progresos", async (req, res) => {
     return res.status(201).json({ ok: true, progreso: data });
   } catch (e) {
     console.error("[PROGRESOS][CREATE]", e);
-    return res
-      .status(500)
-      .json({
-        error: "PROGRESO_CREATE_FAILED",
-        detail: String(e?.message || e),
-      });
+    return res.status(500).json({
+      error: "PROGRESO_CREATE_FAILED",
+      detail: String(e?.message || e),
+    });
   }
 });
 
@@ -784,12 +799,10 @@ app.put("/progresos/:id", async (req, res) => {
     });
   } catch (e) {
     console.error("[PROGRESOS][UPDATE]", e);
-    return res
-      .status(500)
-      .json({
-        error: "PROGRESO_UPDATE_FAILED",
-        detail: String(e?.message || e),
-      });
+    return res.status(500).json({
+      error: "PROGRESO_UPDATE_FAILED",
+      detail: String(e?.message || e),
+    });
   }
 });
 
@@ -800,12 +813,10 @@ app.delete("/progresos/:id", async (req, res) => {
     return res.json({ ok: true });
   } catch (e) {
     console.error("[PROGRESOS][DELETE]", e);
-    return res
-      .status(500)
-      .json({
-        error: "PROGRESO_DELETE_FAILED",
-        detail: String(e?.message || e),
-      });
+    return res.status(500).json({
+      error: "PROGRESO_DELETE_FAILED",
+      detail: String(e?.message || e),
+    });
   }
 });
 
@@ -828,12 +839,10 @@ app.post("/mensajes", async (req, res) => {
     return res.status(201).json({ ok: true, mensaje: data });
   } catch (e) {
     console.error("[MENSAJES][CREATE]", e);
-    return res
-      .status(500)
-      .json({
-        error: "MENSAJE_CREATE_FAILED",
-        detail: String(e?.message || e),
-      });
+    return res.status(500).json({
+      error: "MENSAJE_CREATE_FAILED",
+      detail: String(e?.message || e),
+    });
   }
 });
 
@@ -861,12 +870,10 @@ app.delete("/mensajes/:id", async (req, res) => {
     return res.json({ ok: true });
   } catch (e) {
     console.error("[MENSAJES][DELETE]", e);
-    return res
-      .status(500)
-      .json({
-        error: "MENSAJE_DELETE_FAILED",
-        detail: String(e?.message || e),
-      });
+    return res.status(500).json({
+      error: "MENSAJE_DELETE_FAILED",
+      detail: String(e?.message || e),
+    });
   }
 });
 
