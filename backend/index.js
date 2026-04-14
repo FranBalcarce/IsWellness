@@ -1,4 +1,3 @@
-// server/index.js
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -19,7 +18,6 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Permite requests sin origin (Postman, healthchecks, server-to-server)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
@@ -64,7 +62,7 @@ function initFirebaseAdmin() {
 
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
-      "Firebase Admin no configurado. Creá server/serviceAccountKey.json o configurá FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY",
+      "Firebase Admin no configurado. Creá backend/serviceAccountKey.json o configurá FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY",
     );
   }
 
@@ -83,14 +81,9 @@ const db = admin.firestore();
 
 // ===== Helpers =====
 function sanitizeRutinaPayload(body = {}) {
-  const nombre =
-    String(
-      body.nombre ||
-        body.nombreRutina ||
-        body.title ||
-        body.name ||
-        "",
-    ).trim();
+  const nombre = String(
+    body.nombre || body.nombreRutina || body.title || body.name || "",
+  ).trim();
 
   const alumnoId = String(
     body.alumnoId || body.studentId || body.userId || "",
@@ -102,10 +95,7 @@ function sanitizeRutinaPayload(body = {}) {
     ? body.ejercicios
         .map((ej, index) => {
           const nombreEjercicio = String(
-            ej?.nombre ||
-              ej?.name ||
-              ej?.ejercicio ||
-              "",
+            ej?.nombre || ej?.name || ej?.ejercicio || "",
           ).trim();
 
           const series = Array.isArray(ej?.series)
@@ -257,7 +247,6 @@ app.post("/reset-link", async (req, res) => {
 });
 
 // ======================================================
-<<<<<<< HEAD:server/index.js
 // CREAR RUTINA
 // ======================================================
 app.post("/rutinas", async (req, res) => {
@@ -268,25 +257,12 @@ app.post("/rutinas", async (req, res) => {
 
     if (!nombre) {
       return res.status(400).json({ error: "Falta el nombre de la rutina" });
-=======
-// RUTINAS
-// ======================================================
-
-// Crear rutina
-app.post("/rutinas", async (req, res) => {
-  try {
-    const { nombre, alumnoId, ejercicios = [] } = req.body || {};
-
-    if (!nombre) {
-      return res.status(400).json({ error: "Falta nombre" });
->>>>>>> 4af4b5d (separate frontend and backend):backend/index.js
     }
 
     if (!alumnoId) {
       return res.status(400).json({ error: "Falta alumnoId" });
     }
 
-<<<<<<< HEAD:server/index.js
     const rutinaRef = db.collection("rutinas").doc();
 
     const rutina = {
@@ -294,20 +270,11 @@ app.post("/rutinas", async (req, res) => {
       nombre,
       alumnoId,
       coachId,
-=======
-    const ref = db.collection("rutinas").doc();
-
-    const rutina = {
-      id: ref.id,
-      nombre,
-      alumnoId: String(alumnoId),
->>>>>>> 4af4b5d (separate frontend and backend):backend/index.js
       ejercicios,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-<<<<<<< HEAD:server/index.js
     await rutinaRef.set(rutina);
 
     return res.status(201).json({
@@ -324,49 +291,28 @@ app.post("/rutinas", async (req, res) => {
     console.error("[RUTINAS][CREATE] error:", e);
 
     return res.status(500).json({
-=======
-    await ref.set(rutina);
-
-    res.status(201).json({
-      ok: true,
-      rutina,
-    });
-  } catch (e) {
-    console.error("[RUTINAS][CREATE]", e);
-
-    res.status(500).json({
->>>>>>> 4af4b5d (separate frontend and backend):backend/index.js
       error: "RUTINA_CREATE_FAILED",
       detail: String(e?.message || e),
     });
   }
 });
 
-<<<<<<< HEAD:server/index.js
 // ======================================================
 // LISTAR RUTINAS POR ALUMNO
 // ======================================================
-=======
-// Listar rutinas por alumno
->>>>>>> 4af4b5d (separate frontend and backend):backend/index.js
 app.get("/rutinas/:alumnoId", async (req, res) => {
   try {
     const alumnoId = String(req.params.alumnoId || "").trim();
 
-<<<<<<< HEAD:server/index.js
     if (!alumnoId) {
       return res.status(400).json({ error: "Falta alumnoId" });
     }
 
     const snapshot = await db
-=======
-    const snap = await db
->>>>>>> 4af4b5d (separate frontend and backend):backend/index.js
       .collection("rutinas")
       .where("alumnoId", "==", alumnoId)
       .get();
 
-<<<<<<< HEAD:server/index.js
     const rutinas = snapshot.docs.map((doc) => {
       const data = doc.data();
       return {
@@ -383,25 +329,12 @@ app.get("/rutinas/:alumnoId", async (req, res) => {
     console.error("[RUTINAS][LIST] error:", e);
 
     return res.status(500).json({
-=======
-    const rutinas = snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    }));
-
-    res.json({ ok: true, rutinas });
-  } catch (e) {
-    console.error("[RUTINAS][LIST]", e);
-
-    res.status(500).json({
->>>>>>> 4af4b5d (separate frontend and backend):backend/index.js
       error: "RUTINAS_LIST_FAILED",
       detail: String(e?.message || e),
     });
   }
 });
 
-<<<<<<< HEAD:server/index.js
 // ======================================================
 // OBTENER UNA RUTINA
 // ======================================================
@@ -516,27 +449,6 @@ app.delete("/rutinas/:rutinaId", async (req, res) => {
     console.error("[RUTINAS][DELETE] error:", e);
 
     return res.status(500).json({
-=======
-// Eliminar rutina
-app.delete("/rutinas/:id", async (req, res) => {
-  try {
-    const id = String(req.params.id || "").trim();
-
-    const ref = db.collection("rutinas").doc(id);
-    const snap = await ref.get();
-
-    if (!snap.exists) {
-      return res.status(404).json({ error: "RUTINA_NOT_FOUND" });
-    }
-
-    await ref.delete();
-
-    res.json({ ok: true });
-  } catch (e) {
-    console.error("[RUTINAS][DELETE]", e);
-
-    res.status(500).json({
->>>>>>> 4af4b5d (separate frontend and backend):backend/index.js
       error: "RUTINA_DELETE_FAILED",
       detail: String(e?.message || e),
     });
