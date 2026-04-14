@@ -212,6 +212,61 @@ app.post("/invite-alumno", async (req, res) => {
 });
 
 // ======================================================
+// ELIMINAR ALUMNO
+// ======================================================
+app.delete("/alumnos/:uid", async (req, res) => {
+  try {
+    const uid = String(req.params.uid || "").trim();
+
+    if (!uid) {
+      return res.status(400).json({ error: "Falta uid" });
+    }
+
+    const userRef = db.doc(`users/${uid}`);
+    const userSnap = await userRef.get();
+
+    if (!userSnap.exists) {
+      return res.status(404).json({ error: "ALUMNO_NOT_FOUND" });
+    }
+
+    const userData = userSnap.data() || {};
+    const coachId = String(userData.coachId || "").trim();
+
+    // Borrar referencia bajo el coach si existe
+    if (coachId) {
+      const coachStudentRef = db.doc(`coaches/${coachId}/students/${uid}`);
+      const coachStudentSnap = await coachStudentRef.get();
+
+      if (coachStudentSnap.exists) {
+        await coachStudentRef.delete();
+      }
+    }
+
+    // Borrar perfil del usuario en Firestore
+    await userRef.delete();
+
+    // Borrar usuario en Firebase Auth
+    try {
+      await admin.auth().deleteUser(uid);
+    } catch (authError) {
+      // Si no existe en Auth, no cortamos todo el flujo
+      console.warn("[ALUMNOS][DELETE][AUTH]", authError?.message || authError);
+    }
+
+    return res.json({
+      ok: true,
+      deletedUid: uid,
+    });
+  } catch (e) {
+    console.error("[ALUMNOS][DELETE] error:", e);
+
+    return res.status(500).json({
+      error: "ALUMNO_DELETE_FAILED",
+      detail: String(e?.message || e),
+    });
+  }
+});
+// ======================================================
 // REENVIAR / GENERAR LINK DE CONTRASEÑA
 // ======================================================
 app.post("/reset-link", async (req, res) => {
