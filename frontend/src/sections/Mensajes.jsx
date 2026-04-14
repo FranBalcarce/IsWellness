@@ -1,39 +1,67 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 
-export default function Mensajes({ alumnoId, userName }) {
+export default function Mensajes({ alumnoId, isAlumno }) {
+  const alumnoKey = String(alumnoId);
   const [list, setList] = useState([]);
-  const [text, setText] = useState("");
+  const [texto, setTexto] = useState("");
 
-  const load = async () => setList(await api.mensajes.listByAlumno(alumnoId));
+  const load = async () => {
+    try {
+      const data = await api.mensajes.listByAlumno(alumnoKey);
+      setList(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+      alert("No se pudieron cargar los mensajes.");
+    }
+  };
+
   useEffect(() => {
     load();
-  }, [alumnoId]);
+  }, [alumnoKey]);
 
   const send = async () => {
-    if (!text.trim()) return;
-    await api.mensajes.create({ alumnoId, from: userName || "Usuario", text });
-    setText("");
-    await load();
+    if (!texto.trim()) return;
+
+    try {
+      await api.mensajes.create({
+        alumnoId: alumnoKey,
+        texto: texto.trim(),
+        autor: isAlumno ? "alumno" : "coach",
+      });
+
+      setTexto("");
+      await load();
+    } catch (e) {
+      console.error(e);
+      alert("No se pudo enviar el mensaje.");
+    }
   };
 
   return (
     <div className="grid" style={{ gap: 12 }}>
       <h2 className="title">Mensajes</h2>
+
       <div className="grid" style={{ gap: 8 }}>
-        {[...list].reverse().map((m) => (
-          <div className="card" key={m.id}>
-            <strong>{m.from}:</strong> {m.text}
-          </div>
-        ))}
+        {list.length === 0 ? (
+          <div className="empty-state">Todavía no hay mensajes.</div>
+        ) : (
+          list.map((m) => (
+            <div className="card" key={m.id}>
+              <strong>{m.autor || "Sin autor"}:</strong>{" "}
+              {m.texto || "Sin contenido"}
+            </div>
+          ))
+        )}
       </div>
+
       <div className="row" style={{ gap: 8 }}>
         <input
-          placeholder="Escribí un mensaje…"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          placeholder="Escribí un mensaje..."
         />
-        <button className="btn primary" onClick={send}>
+        <button type="button" className="btn primary" onClick={send}>
           Enviar
         </button>
       </div>
