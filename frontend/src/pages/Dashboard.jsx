@@ -29,8 +29,14 @@ export default function Dashboard({ user, setAlumnoCtx }) {
   }, []);
 
   const abrir = (a) => {
-    setAlumnoCtx(a);
-    nav(`/alumno/${a.id}/rutinas`);
+    const alumnoId = a.uid || a.id;
+    setAlumnoCtx({
+      id: alumnoId,
+      uid: alumnoId,
+      name: a.name,
+      email: a.email,
+    });
+    nav(`/alumno/${alumnoId}/rutinas`);
   };
 
   const addAlumno = async () => {
@@ -90,7 +96,9 @@ export default function Dashboard({ user, setAlumnoCtx }) {
     }
   };
 
-  if (user.role !== "coach") return <div className="card">Redirigiendo…</div>;
+  if (user.role !== "coach") {
+    return <div className="card">Redirigiendo…</div>;
+  }
 
   return (
     <div className="grid" style={{ gap: 20 }}>
@@ -121,39 +129,72 @@ export default function Dashboard({ user, setAlumnoCtx }) {
         </div>
       ) : (
         <div className="grid cards">
-          {alumnos.map((a) => (
-            <div className="card clickable" key={a.id} onClick={() => abrir(a)}>
-              <div className="student-card-header">
-                <div>
-                  <div className="student-name">{a.name}</div>
-                  <div className="student-email">{a.email}</div>
-                </div>
+          {alumnos.map((a) => {
+            const alumnoId = a.uid || a.id;
 
+            return (
+              <div
+                className="card clickable"
+                key={alumnoId}
+                onClick={() => abrir(a)}
+                style={{ cursor: "pointer" }}
+              >
                 <div
+                  className="student-card-header"
                   style={{
                     display: "flex",
+                    justifyContent: "space-between",
                     alignItems: "center",
-                    gap: 10,
+                    gap: 12,
+                    width: "100%",
                   }}
                 >
-                  <button
-                    className="btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      eliminarAlumno(a.uid || a.id);
+                  <div
+                    style={{
+                      minWidth: 0,
+                      flex: 1,
                     }}
-                    disabled={loading}
                   >
-                    Eliminar
-                  </button>
+                    <div className="student-name">{a.name}</div>
+                    <div
+                      className="student-email"
+                      style={{
+                        overflowWrap: "anywhere",
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {a.email}
+                    </div>
+                  </div>
 
-                  <div className="student-avatar">
-                    {a.name?.slice(0, 1)?.toUpperCase() || "A"}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <button
+                      className="btn"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        eliminarAlumno(alumnoId);
+                      }}
+                      disabled={loading}
+                    >
+                      Eliminar
+                    </button>
+
+                    <div className="student-avatar">
+                      {a.name?.slice(0, 1)?.toUpperCase() || "A"}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -198,6 +239,7 @@ export default function Dashboard({ user, setAlumnoCtx }) {
           <div className="dialog-footer">
             <button
               className="btn"
+              type="button"
               onClick={() => {
                 if (loading) return;
                 setShowDlg(false);
@@ -209,6 +251,7 @@ export default function Dashboard({ user, setAlumnoCtx }) {
 
             <button
               className="btn primary"
+              type="button"
               onClick={addAlumno}
               disabled={loading}
             >
