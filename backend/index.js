@@ -105,10 +105,15 @@ function sanitizeRutinaPayload(body = {}) {
               }))
             : [];
 
+          const video = String(
+            ej?.video || ej?.videoUrl || ej?.youtubeUrl || ej?.url || "",
+          ).trim();
+
           return {
             id: ej?.id || `ej-${index + 1}`,
             nombre: nombreEjercicio,
             series,
+            video,
           };
         })
         .filter((ej) => ej.nombre)
