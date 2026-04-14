@@ -515,6 +515,361 @@ app.delete("/rutinas/:rutinaId", async (req, res) => {
   }
 });
 
+function sanitizePlanPayload(body = {}) {
+  return {
+    nombre: String(body.nombre || body.name || "").trim(),
+    alumnoId: String(body.alumnoId || "").trim(),
+    items: Array.isArray(body.items)
+      ? body.items.map((i) => String(i || "").trim()).filter(Boolean)
+      : [],
+  };
+}
+
+function sanitizePagoPayload(body = {}) {
+  return {
+    alumnoId: String(body.alumnoId || "").trim(),
+    monto: Number(body.monto || 0),
+    fecha: String(body.fecha || "").trim(),
+    estado: String(body.estado || "pendiente").trim(),
+    nota: String(body.nota || "").trim(),
+  };
+}
+
+function sanitizeProgresoPayload(body = {}) {
+  return {
+    alumnoId: String(body.alumnoId || "").trim(),
+    fecha: String(body.fecha || "").trim(),
+    peso: Number(body.peso || 0),
+    medidas: body.medidas || {},
+  };
+}
+
+function sanitizeMensajePayload(body = {}) {
+  return {
+    alumnoId: String(body.alumnoId || "").trim(),
+    texto: String(body.texto || body.text || "").trim(),
+    autor: String(body.autor || body.from || "coach").trim(),
+  };
+}
+
+// ================= PLANES =================
+app.post("/planes", async (req, res) => {
+  try {
+    const { nombre, alumnoId, items } = sanitizePlanPayload(req.body);
+    if (!nombre) return res.status(400).json({ error: "Falta nombre" });
+    if (!alumnoId) return res.status(400).json({ error: "Falta alumnoId" });
+
+    const ref = db.collection("planes").doc();
+    const plan = {
+      id: ref.id,
+      nombre,
+      alumnoId,
+      items,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await ref.set(plan);
+    return res.status(201).json({ ok: true, plan });
+  } catch (e) {
+    console.error("[PLANES][CREATE]", e);
+    return res
+      .status(500)
+      .json({ error: "PLAN_CREATE_FAILED", detail: String(e?.message || e) });
+  }
+});
+
+app.get("/planes/:alumnoId", async (req, res) => {
+  try {
+    const alumnoId = String(req.params.alumnoId || "").trim();
+    const snap = await db
+      .collection("planes")
+      .where("alumnoId", "==", alumnoId)
+      .get();
+    const planes = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    return res.json({ ok: true, planes });
+  } catch (e) {
+    console.error("[PLANES][LIST]", e);
+    return res
+      .status(500)
+      .json({ error: "PLAN_LIST_FAILED", detail: String(e?.message || e) });
+  }
+});
+
+app.put("/planes/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    const { nombre, alumnoId, items } = sanitizePlanPayload(req.body);
+    const ref = db.collection("planes").doc(id);
+
+    await ref.set(
+      {
+        nombre,
+        alumnoId,
+        items,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    const updated = await ref.get();
+    return res.json({ ok: true, plan: { id: updated.id, ...updated.data() } });
+  } catch (e) {
+    console.error("[PLANES][UPDATE]", e);
+    return res
+      .status(500)
+      .json({ error: "PLAN_UPDATE_FAILED", detail: String(e?.message || e) });
+  }
+});
+
+app.delete("/planes/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    await db.collection("planes").doc(id).delete();
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("[PLANES][DELETE]", e);
+    return res
+      .status(500)
+      .json({ error: "PLAN_DELETE_FAILED", detail: String(e?.message || e) });
+  }
+});
+
+// ================= PAGOS =================
+app.post("/pagos", async (req, res) => {
+  try {
+    const pago = sanitizePagoPayload(req.body);
+    if (!pago.alumnoId)
+      return res.status(400).json({ error: "Falta alumnoId" });
+
+    const ref = db.collection("pagos").doc();
+    const data = {
+      id: ref.id,
+      ...pago,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await ref.set(data);
+    return res.status(201).json({ ok: true, pago: data });
+  } catch (e) {
+    console.error("[PAGOS][CREATE]", e);
+    return res
+      .status(500)
+      .json({ error: "PAGO_CREATE_FAILED", detail: String(e?.message || e) });
+  }
+});
+
+app.get("/pagos/:alumnoId", async (req, res) => {
+  try {
+    const alumnoId = String(req.params.alumnoId || "").trim();
+    const snap = await db
+      .collection("pagos")
+      .where("alumnoId", "==", alumnoId)
+      .get();
+    const pagos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    return res.json({ ok: true, pagos });
+  } catch (e) {
+    console.error("[PAGOS][LIST]", e);
+    return res
+      .status(500)
+      .json({ error: "PAGO_LIST_FAILED", detail: String(e?.message || e) });
+  }
+});
+
+app.put("/pagos/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    const pago = sanitizePagoPayload(req.body);
+
+    await db
+      .collection("pagos")
+      .doc(id)
+      .set(
+        {
+          ...pago,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+
+    const updated = await db.collection("pagos").doc(id).get();
+    return res.json({ ok: true, pago: { id: updated.id, ...updated.data() } });
+  } catch (e) {
+    console.error("[PAGOS][UPDATE]", e);
+    return res
+      .status(500)
+      .json({ error: "PAGO_UPDATE_FAILED", detail: String(e?.message || e) });
+  }
+});
+
+app.delete("/pagos/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    await db.collection("pagos").doc(id).delete();
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("[PAGOS][DELETE]", e);
+    return res
+      .status(500)
+      .json({ error: "PAGO_DELETE_FAILED", detail: String(e?.message || e) });
+  }
+});
+
+// ================= PROGRESOS =================
+app.post("/progresos", async (req, res) => {
+  try {
+    const progreso = sanitizeProgresoPayload(req.body);
+    if (!progreso.alumnoId)
+      return res.status(400).json({ error: "Falta alumnoId" });
+
+    const ref = db.collection("progresos").doc();
+    const data = {
+      id: ref.id,
+      ...progreso,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await ref.set(data);
+    return res.status(201).json({ ok: true, progreso: data });
+  } catch (e) {
+    console.error("[PROGRESOS][CREATE]", e);
+    return res
+      .status(500)
+      .json({
+        error: "PROGRESO_CREATE_FAILED",
+        detail: String(e?.message || e),
+      });
+  }
+});
+
+app.get("/progresos/:alumnoId", async (req, res) => {
+  try {
+    const alumnoId = String(req.params.alumnoId || "").trim();
+    const snap = await db
+      .collection("progresos")
+      .where("alumnoId", "==", alumnoId)
+      .get();
+    const progresos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    return res.json({ ok: true, progresos });
+  } catch (e) {
+    console.error("[PROGRESOS][LIST]", e);
+    return res
+      .status(500)
+      .json({ error: "PROGRESO_LIST_FAILED", detail: String(e?.message || e) });
+  }
+});
+
+app.put("/progresos/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    const progreso = sanitizeProgresoPayload(req.body);
+
+    await db
+      .collection("progresos")
+      .doc(id)
+      .set(
+        {
+          ...progreso,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+
+    const updated = await db.collection("progresos").doc(id).get();
+    return res.json({
+      ok: true,
+      progreso: { id: updated.id, ...updated.data() },
+    });
+  } catch (e) {
+    console.error("[PROGRESOS][UPDATE]", e);
+    return res
+      .status(500)
+      .json({
+        error: "PROGRESO_UPDATE_FAILED",
+        detail: String(e?.message || e),
+      });
+  }
+});
+
+app.delete("/progresos/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    await db.collection("progresos").doc(id).delete();
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("[PROGRESOS][DELETE]", e);
+    return res
+      .status(500)
+      .json({
+        error: "PROGRESO_DELETE_FAILED",
+        detail: String(e?.message || e),
+      });
+  }
+});
+
+// ================= MENSAJES =================
+app.post("/mensajes", async (req, res) => {
+  try {
+    const mensaje = sanitizeMensajePayload(req.body);
+    if (!mensaje.alumnoId)
+      return res.status(400).json({ error: "Falta alumnoId" });
+    if (!mensaje.texto) return res.status(400).json({ error: "Falta texto" });
+
+    const ref = db.collection("mensajes").doc();
+    const data = {
+      id: ref.id,
+      ...mensaje,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await ref.set(data);
+    return res.status(201).json({ ok: true, mensaje: data });
+  } catch (e) {
+    console.error("[MENSAJES][CREATE]", e);
+    return res
+      .status(500)
+      .json({
+        error: "MENSAJE_CREATE_FAILED",
+        detail: String(e?.message || e),
+      });
+  }
+});
+
+app.get("/mensajes/:alumnoId", async (req, res) => {
+  try {
+    const alumnoId = String(req.params.alumnoId || "").trim();
+    const snap = await db
+      .collection("mensajes")
+      .where("alumnoId", "==", alumnoId)
+      .get();
+    const mensajes = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    return res.json({ ok: true, mensajes });
+  } catch (e) {
+    console.error("[MENSAJES][LIST]", e);
+    return res
+      .status(500)
+      .json({ error: "MENSAJE_LIST_FAILED", detail: String(e?.message || e) });
+  }
+});
+
+app.delete("/mensajes/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    await db.collection("mensajes").doc(id).delete();
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("[MENSAJES][DELETE]", e);
+    return res
+      .status(500)
+      .json({
+        error: "MENSAJE_DELETE_FAILED",
+        detail: String(e?.message || e),
+      });
+  }
+});
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server listening on http://0.0.0.0:${PORT}`);
 });

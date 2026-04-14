@@ -176,6 +176,170 @@ export const api = {
       return true;
     },
   },
+  planes: {
+    async listByAlumno(alumnoId) {
+      const r = await fetch(
+        `${BASE}/planes/${encodeURIComponent(String(alumnoId))}`,
+      );
+      const data = await ok(r);
+      return data.planes || [];
+    },
+
+    async create(payload) {
+      const r = await fetch(`${BASE}/planes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          alumnoId: String(payload.alumnoId),
+        }),
+      });
+
+      const data = await ok(r);
+      return data.plan;
+    },
+
+    async update(id, patch) {
+      const r = await fetch(`${BASE}/planes/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+
+      const data = await ok(r);
+      return data.plan;
+    },
+
+    async remove(id) {
+      const r = await fetch(`${BASE}/planes/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!r.ok) throw new Error("No se pudo eliminar el plan");
+      return true;
+    },
+  },
+
+  pagos: {
+    async listByAlumno(alumnoId) {
+      const r = await fetch(
+        `${BASE}/pagos/${encodeURIComponent(String(alumnoId))}`,
+      );
+      const data = await ok(r);
+      return data.pagos || [];
+    },
+
+    async create(payload) {
+      const r = await fetch(`${BASE}/pagos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          alumnoId: String(payload.alumnoId),
+        }),
+      });
+
+      const data = await ok(r);
+      return data.pago;
+    },
+
+    async update(id, patch) {
+      const r = await fetch(`${BASE}/pagos/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+
+      const data = await ok(r);
+      return data.pago;
+    },
+
+    async remove(id) {
+      const r = await fetch(`${BASE}/pagos/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!r.ok) throw new Error("No se pudo eliminar el pago");
+      return true;
+    },
+  },
+
+  progresos: {
+    async listByAlumno(alumnoId) {
+      const r = await fetch(
+        `${BASE}/progresos/${encodeURIComponent(String(alumnoId))}`,
+      );
+      const data = await ok(r);
+      return data.progresos || [];
+    },
+
+    async create(payload) {
+      const r = await fetch(`${BASE}/progresos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          alumnoId: String(payload.alumnoId),
+        }),
+      });
+
+      const data = await ok(r);
+      return data.progreso;
+    },
+
+    async update(id, patch) {
+      const r = await fetch(`${BASE}/progresos/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+
+      const data = await ok(r);
+      return data.progreso;
+    },
+
+    async remove(id) {
+      const r = await fetch(`${BASE}/progresos/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!r.ok) throw new Error("No se pudo eliminar el progreso");
+      return true;
+    },
+  },
+
+  mensajes: {
+    async listByAlumno(alumnoId) {
+      const r = await fetch(
+        `${BASE}/mensajes/${encodeURIComponent(String(alumnoId))}`,
+      );
+      const data = await ok(r);
+      return data.mensajes || [];
+    },
+
+    async create(payload) {
+      const r = await fetch(`${BASE}/mensajes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          alumnoId: String(payload.alumnoId),
+        }),
+      });
+
+      const data = await ok(r);
+      return data.mensaje;
+    },
+
+    async remove(id) {
+      const r = await fetch(`${BASE}/mensajes/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!r.ok) throw new Error("No se pudo eliminar el mensaje");
+      return true;
+    },
+  },
 };
 
 // import { signInWithEmailAndPassword, signOut } from "firebase/auth";
