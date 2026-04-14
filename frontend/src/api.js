@@ -124,6 +124,22 @@ export const api = {
 
       return r.json();
     },
+
+    async remove(uid) {
+      const r = await fetch(
+        `${BASE}/alumnos/${encodeURIComponent(String(uid))}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error("No se pudo eliminar el alumno: " + t);
+      }
+
+      return r.json();
+    },
   },
 
   rutinas: {

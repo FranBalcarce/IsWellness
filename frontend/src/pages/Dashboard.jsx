@@ -1,22 +1,26 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { useNavigate } from "react-router-dom";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "../firebase";
 
 export default function Dashboard({ user, setAlumnoCtx }) {
   const nav = useNavigate();
   const [alumnos, setAlumnos] = useState([]);
   const [showDlg, setShowDlg] = useState(false);
   const [nuevo, setNuevo] = useState({ name: "", email: "" });
+  const [loading, setLoading] = useState(false);
 
   const load = async () => {
-    if (user.role === "coach") {
-      const list = await api.alumnos.list(user.id);
-      setAlumnos(list);
-    } else {
-      setAlumnoCtx({ id: user.id, name: user.name, email: user.email });
-      nav(`/alumno/${user.id}/rutinas`);
+    try {
+      if (user.role === "coach") {
+        const list = await api.alumnos.list(user.id);
+        setAlumnos(Array.isArray(list) ? list : []);
+      } else {
+        setAlumnoCtx({ id: user.id, name: user.name, email: user.email });
+        nav(`/alumno/${user.id}/rutinas`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("No se pudieron cargar los alumnos.");
     }
   };
 
@@ -30,34 +34,59 @@ export default function Dashboard({ user, setAlumnoCtx }) {
   };
 
   const addAlumno = async () => {
-    if (!nuevo.name || !nuevo.email) {
+    if (!nuevo.name.trim() || !nuevo.email.trim()) {
       alert("Completá nombre y email.");
       return;
     }
 
     try {
-      const created = await api.alumnos.create({
-        ...nuevo,
+      setLoading(true);
+
+      await api.alumnos.create({
+        name: nuevo.name.trim(),
+        email: nuevo.email.trim().toLowerCase(),
         coachId: user.id,
       });
 
-      await sendPasswordResetEmail(auth, created.email, {
-        url: `${window.location.origin}/login`,
-        handleCodeInApp: false,
-      });
-
-      alert(`Alumno creado. Se envió el acceso a ${created.email}.`);
-      setAlumnos((a) => [created, ...a]);
+      alert("Alumno creado correctamente.");
       setShowDlg(false);
       setNuevo({ name: "", email: "" });
+      await load();
     } catch (e) {
       console.error(e);
 
       if (e.code === "EMAIL_EXISTS") {
-        return alert("Ese email ya está registrado.");
+        alert("Ese email ya está registrado.");
+        return;
+      }
+
+      if (String(e.message || "").includes("unauthorized-continue-uri")) {
+        alert(
+          "El dominio no está autorizado en Firebase. Revisá los dominios autorizados.",
+        );
+        return;
       }
 
       alert("No se pudo crear el alumno: " + (e.message || "Error"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const eliminarAlumno = async (uid) => {
+    try {
+      const confirmar = window.confirm("¿Querés eliminar este alumno?");
+      if (!confirmar) return;
+
+      setLoading(true);
+      await api.alumnos.remove(uid);
+      alert("Alumno eliminado correctamente.");
+      await load();
+    } catch (e) {
+      console.error(e);
+      alert("No se pudo eliminar el alumno.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,7 +105,11 @@ export default function Dashboard({ user, setAlumnoCtx }) {
           </div>
         </div>
 
-        <button className="btn primary" onClick={() => setShowDlg(true)}>
+        <button
+          className="btn primary"
+          onClick={() => setShowDlg(true)}
+          disabled={loading}
+        >
           + Agregar alumno
         </button>
       </div>
@@ -95,8 +128,28 @@ export default function Dashboard({ user, setAlumnoCtx }) {
                   <div className="student-name">{a.name}</div>
                   <div className="student-email">{a.email}</div>
                 </div>
-                <div className="student-avatar">
-                  {a.name?.slice(0, 1)?.toUpperCase() || "A"}
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                  }}
+                >
+                  <button
+                    className="btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      eliminarAlumno(a.uid || a.id);
+                    }}
+                    disabled={loading}
+                  >
+                    Eliminar
+                  </button>
+
+                  <div className="student-avatar">
+                    {a.name?.slice(0, 1)?.toUpperCase() || "A"}
+                  </div>
                 </div>
               </div>
             </div>
@@ -124,6 +177,7 @@ export default function Dashboard({ user, setAlumnoCtx }) {
                   setNuevo((v) => ({ ...v, name: e.target.value }))
                 }
                 placeholder="Ej. Francisco"
+                disabled={loading}
               />
             </div>
 
@@ -136,16 +190,29 @@ export default function Dashboard({ user, setAlumnoCtx }) {
                   setNuevo((v) => ({ ...v, email: e.target.value }))
                 }
                 placeholder="Ej. alumno@gmail.com"
+                disabled={loading}
               />
             </div>
           </div>
 
           <div className="dialog-footer">
-            <button className="btn" onClick={() => setShowDlg(false)}>
+            <button
+              className="btn"
+              onClick={() => {
+                if (loading) return;
+                setShowDlg(false);
+              }}
+              disabled={loading}
+            >
               Cancelar
             </button>
-            <button className="btn primary" onClick={addAlumno}>
-              Guardar
+
+            <button
+              className="btn primary"
+              onClick={addAlumno}
+              disabled={loading}
+            >
+              {loading ? "Guardando..." : "Guardar"}
             </button>
           </div>
         </dialog>
